@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Laboratory Report - BCA152 FreeRTOS Multisensor</title>
+<style>
+  @page {
+    size: A4;
+    margin: 20mm 15mm 20mm 15mm;
+  }
+  body {
+    font-family: "Segoe UI", Arial, sans-serif;
+    color: #1e293b;
+    line-height: 1.5;
+    font-size: 10.5pt;
+    margin: 0;
+    padding: 0;
+  }
+  .header-banner {
+    text-align: center;
+    border-bottom: 2px solid #0f172a;
+    padding-bottom: 12px;
+    margin-bottom: 20px;
+  }
+  .inst-title {
+    font-size: 12pt;
+    font-weight: bold;
+    text-transform: uppercase;
+    color: #0f172a;
+    margin: 0;
+  }
+  .dept-title {
+    font-size: 10pt;
+    color: #475569;
+    margin: 2px 0 10px 0;
+  }
+  .report-title {
+    font-size: 18pt;
+    font-weight: 800;
+    color: #0284c7;
+    margin: 10px 0 4px 0;
+  }
+  .report-subtitle {
+    font-size: 11pt;
+    color: #334155;
+    font-weight: 600;
+  }
+  .meta-table {
+    width: 100%;
+    margin-top: 15px;
+    font-size: 9.5pt;
+    border-collapse: collapse;
+  }
+  .meta-table td {
+    padding: 4px 8px;
+  }
+  .meta-label {
+    font-weight: bold;
+    color: #475569;
+    width: 18%;
+  }
+  .meta-val {
+    color: #0f172a;
+  }
+  h2 {
+    font-size: 13pt;
+    color: #0f172a;
+    border-bottom: 1.5px solid #cbd5e1;
+    padding-bottom: 4px;
+    margin-top: 22px;
+    margin-bottom: 8px;
+    page-break-after: avoid;
+  }
+  h3 {
+    font-size: 11pt;
+    color: #0369a1;
+    margin-top: 14px;
+    margin-bottom: 6px;
+    page-break-after: avoid;
+  }
+  p {
+    margin: 6px 0;
+    text-align: justify;
+  }
+  table.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0;
+    font-size: 9pt;
+  }
+  table.data-table th, table.data-table td {
+    border: 1px solid #cbd5e1;
+    padding: 6px 8px;
+    text-align: left;
+  }
+  table.data-table th {
+    background-color: #f1f5f9;
+    color: #0f172a;
+    font-weight: bold;
+  }
+  .badge-pass {
+    background-color: #dcfce7;
+    color: #166534;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .badge-prio {
+    background-color: #e0f2fe;
+    color: #0369a1;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .code-block {
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-left: 3px solid #0284c7;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 8.5pt;
+    padding: 8px 12px;
+    margin: 8px 0;
+    white-space: pre-wrap;
+  }
+  .diagram-container {
+    text-align: center;
+    margin: 12px 0;
+    page-break-inside: avoid;
+  }
+  .diagram-container img {
+    max-width: 95%;
+    height: auto;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+  }
+  .diagram-caption {
+    font-size: 8.5pt;
+    color: #64748b;
+    font-style: italic;
+    margin-top: 4px;
+  }
+  .page-break {
+    page-break-before: always;
+  }
+</style>
+</head>
+<body>
+
+<div class="header-banner">
+  <div class="inst-title">Mindanao State University – Iligan Institute of Technology</div>
+  <div class="dept-title">College of Computer Studies &bull; Department of Computer Applications</div>
+  <div class="report-title">LABORATORY REPORT NO. 1</div>
+  <div class="report-subtitle">Real-Time Multisensor Room Monitoring System on ESP32 with FreeRTOS</div>
+
+  <table class="meta-table">
+    <tr>
+      <td class="meta-label">Course / Code:</td>
+      <td class="meta-val">BCA152 Microcontrollers</td>
+      <td class="meta-label">Date of Submission:</td>
+      <td class="meta-val">September 10, 2026</td>
+    </tr>
+    <tr>
+      <td class="meta-label">Student Author:</td>
+      <td class="meta-val">Michael Cadiz</td>
+      <td class="meta-label">Instructor:</td>
+      <td class="meta-val">Paul Rodolf P. Castor</td>
+    </tr>
+    <tr>
+      <td class="meta-label">Repository:</td>
+      <td class="meta-val" colspan="3"><a href="https://github.com/mccdz1/bca152-freertos-multisensor">https://github.com/mccdz1/bca152-freertos-multisensor</a></td>
+    </tr>
+  </table>
+</div>
+
+<!-- ========================================================================= -->
+<h2>1. Problem and Requirements</h2>
+<!-- ========================================================================= -->
+<p>
+Traditional micro-controller applications often implement sensing, user input, and display logic inside a monolithic sequential superloop (<code>void loop()</code>). While straightforward for trivial single-device designs, this approach breaks down when multiple asynchronous physical events and timing requirements intersect. For instance, executing a blocking 2-second readout on a digital relative humidity sensor stalls the CPU, causing human rotary encoder twists to be skipped and delaying emergency temperature alarms.
+</p>
+<p>
+The objective of this laboratory is to design, implement, and verify a concurrent embedded edge monitoring system from scratch on the <strong>ESP32</strong> using the native <strong>Espressif IoT Development Framework (ESP-IDF)</strong> and <strong>FreeRTOS</strong> APIs. The system monitors ambient room parameters, provides tactile user navigation, triggers audio alerts on thermal violations, and enforces an occupancy-driven power management state machine.
+</p>
+<p>
+The physical system was adapted to simulated embedded peripherals within the <strong>Wokwi</strong> environment:
+</p>
+<ul>
+  <li><strong>DHT22 (AM2302)</strong>: Interfaced via a single-wire digital protocol on GPIO 4 for calibrated ambient temperature (&deg;C) and relative humidity (%).</li>
+  <li><strong>Photoresistor (LDR)</strong>: Sampled via 12-bit analog-to-digital conversion on ADC1 Channel 6 (GPIO 34), mapped to a relative 0&ndash;100% ambient illumination scale.</li>
+  <li><strong>PIR Motion Sensor</strong>: Digital pulse detection on GPIO 13 to detect human room occupancy.</li>
+  <li><strong>KY-040 Rotary Encoder</strong>: Quadrature digital inputs on GPIO 18 (CLK), GPIO 19 (DT), and GPIO 5 (SW) for bidirectional menu navigation.</li>
+  <li><strong>SSD1306 OLED (128&times;64)</strong>: Fast-mode I2C master interface on GPIO 21 (SDA) and GPIO 22 (SCL) at 400 kHz to render telemetry dashboards.</li>
+  <li><strong>Active Piezo Buzzer</strong>: Digital switching on GPIO 15 to sound emergency alerts when temperature exceeds configured thresholds.</li>
+</ul>
+
+<!-- ========================================================================= -->
+<h2>2. System Architecture and Design</h2>
+<!-- ========================================================================= -->
+<p>
+The system employs a 5-layer modular software and hardware architecture, ensuring strict decoupling between physical drivers, operating system services, application logic, and user interfaces.
+</p>
+
+<div class="diagram-container">
+  <img src="system_architecture.png" alt="System Architecture">
+  <div class="diagram-caption">Figure 1: Layered system architecture illustrating component decoupling.</div>
+</div>
+
+<p>
+<strong>Subsystem Decomposition:</strong>
+</p>
+<ul>
+  <li><strong>Sensor Acquisition Subsystem (<code>sensors.cpp</code>)</strong>: Implements microsecond-timed 1-wire bit-banging for the DHT22 and oneshot 12-bit ADC conversion for the LDR. Periodically packages measurements into a canonical <code>SensorData</code> structure.</li>
+  <li><strong>Alarm & Anomaly Subsystem (<code>alarm.cpp</code>)</strong>: Evaluates ambient temperatures against safety limits (18.0 &deg;C &le; <em>T</em> &le; 30.0 &deg;C) and asserts acoustic transducer outputs.</li>
+  <li><strong>User Navigation Subsystem (<code>input.cpp</code>)</strong>: Decodes quadrature gray-code state transitions on encoder pins, debounces mechanical bounce, and transitions between menu views with wraparound.</li>
+  <li><strong>Display Dashboard Subsystem (<code>display.cpp</code>)</strong>: Acts as the sole owner of the I2C bus and SSD1306 controller, preventing bus arbitration collisions.</li>
+  <li><strong>Power & State Management Subsystem (<code>system_state.cpp</code>)</strong>: Implements a finite state machine managing <code>ACTIVE</code> and <code>INACTIVE</code> power states based on PIR motion and inactivity timeouts.</li>
+</ul>
+
+<div class="diagram-container">
+  <img src="state_machine.png" alt="State Machine">
+  <div class="diagram-caption">Figure 2: Finite State Machine governing device power states and display activation.</div>
+</div>
+
+<p>
+<strong>State Machine Transitions:</strong>
+</p>
+<ul>
+  <li><strong>ACTIVE State</strong>: Full display brightness, real-time visual telemetry updates, responsive encoder navigation, and acoustic alarm activation.</li>
+  <li><strong>INACTIVE State</strong>: If no motion is detected for <strong>15.0 seconds</strong>, the device transitions to <code>INACTIVE</code>, powering off the OLED screen (<code>display_set_power(false)</code>) to conserve energy and suppress I2C traffic while keeping background PIR monitoring active.</li>
+  <li><strong>Reactivation</strong>: Any rising edge on the PIR motion line or rotary encoder rotation restores the system immediately to <code>ACTIVE</code> state.</li>
+</ul>
+
+<div class="page-break"></div>
+
+<!-- ========================================================================= -->
+<h2>3. FreeRTOS Architecture & Synchronization</h2>
+<!-- ========================================================================= -->
+<p>
+The application executes six distinct FreeRTOS tasks configured with explicit priorities and synchronized via queues, mutexes, event groups, and interval delays:
+</p>
+
+<div class="diagram-container">
+  <img src="freertos_architecture.png" alt="FreeRTOS Architecture">
+  <div class="diagram-caption">Figure 3: FreeRTOS task communication, queue dispatch, mutex locking, and event group flags.</div>
+</div>
+
+<h3>Required FreeRTOS Task Schedule Table</h3>
+<table class="data-table">
+  <thead>
+    <tr>
+      <th>Task Name</th>
+      <th>Responsibility</th>
+      <th>Trigger / Period</th>
+      <th>Priority</th>
+      <th>IPC Mechanism</th>
+      <th>Typical Blocked Condition</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>MotionTask</strong></td>
+      <td>PIR pin sampling & presence flag dispatch</td>
+      <td>100 ms periodic</td>
+      <td><span class="badge-prio">3</span></td>
+      <td>Event Group (<code>EVENT_MOTION</code>)</td>
+      <td><code>vTaskDelay(pdMS_TO_TICKS(100))</code></td>
+    </tr>
+    <tr>
+      <td><strong>InputTask</strong></td>
+      <td>Rotary encoder quadrature decoding & navigation</td>
+      <td>10 ms periodic</td>
+      <td><span class="badge-prio">3</span></td>
+      <td>Shared Mode / Notification</td>
+      <td><code>vTaskDelay(pdMS_TO_TICKS(10))</code></td>
+    </tr>
+    <tr>
+      <td><strong>SensorTask</strong></td>
+      <td>DHT22 & LDR measurement acquisition</td>
+      <td>2000 ms periodic</td>
+      <td><span class="badge-prio">2</span></td>
+      <td>Queue (<code>sensorQueue</code>)</td>
+      <td><code>vTaskDelayUntil(&lastWake, 2000ms)</code></td>
+    </tr>
+    <tr>
+      <td><strong>AlarmTask</strong></td>
+      <td>Temperature evaluation & buzzer activation</td>
+      <td>Event-driven (Queue)</td>
+      <td><span class="badge-prio">2</span></td>
+      <td>Queue (<code>sensorQueue</code>)</td>
+      <td><code>xQueueReceive(sensorQueue, portMAX_DELAY)</code></td>
+    </tr>
+    <tr>
+      <td><strong>StateTask</strong></td>
+      <td>Inactivity tracking & state machine evaluation</td>
+      <td>500 ms periodic</td>
+      <td><span class="badge-prio">2</span></td>
+      <td>Event Group (<code>EVENT_ACTIVE</code>)</td>
+      <td><code>vTaskDelay(pdMS_TO_TICKS(500))</code></td>
+    </tr>
+    <tr>
+      <td><strong>DisplayTask</strong></td>
+      <td>SSD1306 OLED rendering (Sole Hardware Owner)</td>
+      <td>150 ms periodic</td>
+      <td><span class="badge-prio">1</span></td>
+      <td>Queue / Shared Cache</td>
+      <td><code>xQueueReceive() / vTaskDelay(150ms)</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Technical Priority & Scheduling Justification</h3>
+<p>
+Priorities in FreeRTOS represent <strong>scheduling urgency and deadline tolerance</strong> rather than abstract importance:
+</p>
+<ul>
+  <li><strong>Priority 3 (High Urgency)</strong>: Assigned to <code>MotionTask</code> and <code>InputTask</code>. Both interact directly with physical user phenomena (encoder clicks and PIR occupancy edges). If delayed by lower tasks, the CPU would miss quadrature state changes, resulting in dropped dial clicks and sluggish responsiveness.</li>
+  <li><strong>Priority 2 (Medium Urgency)</strong>: Assigned to <code>SensorTask</code>, <code>AlarmTask</code>, and <code>StateTask</code>. <code>SensorTask</code> operates on a rigid 2.0 s cadence. <code>AlarmTask</code> runs immediately when a new telemetry packet is enqueued, evaluating hazards without starving interactive inputs.</li>
+  <li><strong>Priority 1 (Low Urgency)</strong>: Assigned to <code>DisplayTask</code>. Full-frame 128&times;64 pixel I2C transfers require several milliseconds. Because human visual perception cannot distinguish millisecond frame differences, <code>DisplayTask</code> runs in the background, preempted by any sensor or user event.</li>
+</ul>
+
+<h3>Analysis of <code>vTaskDelayUntil()</code> vs <code>vTaskDelay()</code></h3>
+<p>
+Standard <code>vTaskDelay(n)</code> suspends the task for <em>n</em> ticks starting <em>from the moment the function is invoked</em>. If the sensor reading takes variable execution time &Delta;<em>t</em><sub>exec</sub>, the true elapsed cycle length expands to:
+</p>
+<div class="code-block">Actual Sampling Period = Nominal Delay + &Delta;t_exec</div>
+<p>
+Over thousands of iterations, this introduces severe cumulative timing drift. In contrast, <code>vTaskDelayUntil(&lastWakeTime, 2000ms)</code> schedules the next wake tick relative to <code>lastWakeTime</code>:
+</p>
+<div class="code-block">Next Wake Tick = lastWakeTime + pdMS_TO_TICKS(2000)</div>
+<p>
+This eliminates drift, ensuring a steady, deterministic 0.5 Hz telemetry sampling rate regardless of I/O latency.
+</p>
+
+<h3>Inter-Task Communication & Resource Protection</h3>
+<ul>
+  <li><strong>Queue (<code>sensorQueue</code>)</strong>: Sized for 5 <code>SensorData</code> structures. Avoids race conditions and memory corruption by cleanly decoupling the producer (<code>SensorTask</code>) from asynchronous consumers (<code>AlarmTask</code>, <code>DisplayTask</code>).</li>
+  <li><strong>Mutex (<code>serialMutex</code>)</strong>: Guards the shared UART stdout stream. Without mutex protection, concurrent tasks calling logging routines produce corrupted, interleaved console output.</li>
+  <li><strong>Event Group (<code>systemEventGroup</code>)</strong>: Manages atomic bit flags across modules (<code>BIT0: EVENT_ACTIVE</code>, <code>BIT1: EVENT_MOTION</code>, <code>BIT2: EVENT_ALARM</code>), allowing immediate reactive synchronization.</li>
+</ul>
+
+<div class="page-break"></div>
+
+<!-- ========================================================================= -->
+<h2>4. Implementation Decisions & Trade-Offs</h2>
+<!-- ========================================================================= -->
+<p>
+Key design and architectural choices made during implementation:
+</p>
+<ul>
+  <li><strong>Pure Logic Decoupling for Testability</strong>: All business and decision logic was isolated into pure, side-effect-free functions (<code>evaluateTemperature</code>, <code>nextDisplayMode</code>, <code>previousDisplayMode</code>, <code>evaluateSystemState</code>). These functions do not call hardware APIs, enabling 100% automated unit testing with Unity on host and target.</li>
+  <li><strong>Single-Owner OLED Architecture</strong>: Multiple tasks writing to an I2C OLED display simultaneously causes bus contention, packet corruption, and display lockups. <code>DisplayTask</code> was designed as the sole owner of the I2C bus; other tasks send data via queues or caches.</li>
+  <li><strong>PlatformIO Pre-Build CMake Hook</strong>: Addressed a known ESP-IDF CMake Git-data reference bug by engineering <code>pre_build_git_fix.py</code> to pre-generate valid git-data markers in build directories before CMake configuration.</li>
+  <li><strong>Quadrature Gray-Code Decoder</strong>: Implemented transition-edge detection on rotary encoder CLK and DT pins with 10 ms debouncing, ensuring noise rejection and crisp dial feel.</li>
+</ul>
+
+<!-- ========================================================================= -->
+<h2>5. Verification and Testing</h2>
+<!-- ========================================================================= -->
+
+<h3>Automated Unit Tests (Unity Framework)</h3>
+<p>
+Thirteen automated unit tests were implemented in <code>test/test_main.cpp</code>, exercising all boundary and wraparound conditions:
+</p>
+
+<table class="data-table">
+  <thead>
+    <tr>
+      <th>Test Function</th>
+      <th>Category</th>
+      <th>Stimulus / Input</th>
+      <th>Expected Output</th>
+      <th>Result</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>test_temperature_below_low_limit</code></td>
+      <td>Alarm Logic</td>
+      <td>17.9 &deg;C</td>
+      <td><code>AlarmState::LOW_TEMPERATURE</code></td>
+      <td><span class="badge-pass">PASS</span></td>
+    </tr>
+    <tr>
+      <td><code>test_temperature_at_low_limit</code></td>
+      <td>Alarm Logic</td>
+      <td>18.0 &deg;C (Boundary)</td>
+      <td><code>AlarmState::NORMAL</code></td>
+      <td><span class="badge-pass">PASS</span></td>
+    </tr>
+    <tr>
+      <td><code>test_temperature_normal_mid</code></td>
+      <td>Alarm Logic</td>
+      <td>24.5 &deg;C</td>
+      <td><code>AlarmState::NORMAL</code></td>
+      <td><span class="badge-pass">PASS</span></td>
+    </tr>
+    <tr>
+      <td><code>test_temperature_at_high_limit</code></td>
+      <td>Alarm Logic</td>
+      <td>30.0 &deg;C (Boundary)</td>
+      <td><code>AlarmState::NORMAL</code></td>
+      <td><span class="badge-pass">PASS</span></td>
+    </tr>
+    <tr>
+      <td><code>test_temperature_above_high_limit</code></td>
+      <td>Alarm Logic</td>
+      <td>30.1 &deg;C</td>
+      <td><code>AlarmState::HIGH_TEMPERATURE</code></td>
+      <td><span class="badge-pass">PASS</span></td>
+    </tr>
+    <tr>
+      <td><code>test_navigation_forward_step</code></td>
+      <td>Navigation</td>
+      <td><code>TEMPERATURE</code> &rarr; CW</td>
+      <td><code>DisplayMode::HUMIDITY</code></td>
+      <td><span class="badge-pass">PASS</span></td>
+    </tr>
+    <tr>
+      <td><code>test_navigation_reverse_step</code></td>
+      <td>Navigation</td>
+      <td><code>HUMIDITY</code> &rarr; CCW</td>
+      <td><code>DisplayMode::TEMPERATURE</code></td>
+      <td><span class="badge-pass">PASS</span></td>
+    </tr>
+    <tr>
+      <td><code>test_navigation_forward_wraparound</code></td>
+      <td>Navigation</td>
+      <td><code>MOTION</code> &rarr; CW</td>
+      <td><code>DisplayMode::TEMPERATURE</code> (Wrap)</td>
+      <td><span class="badge-pass">PASS</span></td>
+    </tr>
+    <tr>
+      <td><code>test_navigation_reverse_wraparound</code></td>
+      <td>Navigation</td>
+      <td><code>TEMPERATURE</code> &rarr; CCW</td>
+      <td><code>DisplayMode::MOTION</code> (Wrap)</td>
+      <td><span class="badge-pass">PASS</span></td>
+    </tr>
+    <tr>
+      <td><code>test_system_state_active_no_timeout</code></td>
+      <td>State Machine</td>
+      <td>ACTIVE, elapsed = 5000ms &lt; 15000ms</td>
+      <td><code>SystemState::ACTIVE</code></td>
+      <td><span class="badge-pass">PASS</span></td>
+    </tr>
+    <tr>
+      <td><code>test_system_state_active_timeout_reached</code></td>
+      <td>State Machine</td>
+      <td>ACTIVE, elapsed = 15000ms &ge; 15000ms</td>
+      <td><code>SystemState::INACTIVE</code></td>
+      <td><span class="badge-pass">PASS</span></td>
+    </tr>
+    <tr>
+      <td><code>test_system_state_inactive_no_motion</code></td>
+      <td>State Machine</td>
+      <td>INACTIVE, no motion</td>
+      <td><code>SystemState::INACTIVE</code></td>
+      <td><span class="badge-pass">PASS</span></td>
+    </tr>
+    <tr>
+      <td><code>test_system_state_inactive_motion_detected</code></td>
+      <td>State Machine</td>
+      <td>INACTIVE, motion = true</td>
+      <td><code>SystemState::ACTIVE</code></td>
+      <td><span class="badge-pass">PASS</span></td>
+    </tr>
+  </tbody>
+</table>
+<p><strong>Overall Unit Test Execution</strong>: <code>13 Tests, 0 Failures, 0 Ignored &rarr; 100% SUCCESS</code>.</p>
+
+<h3>Wokwi Functional Verification Table (FT-01 &ndash; FT-10)</h3>
+<table class="data-table">
+  <thead>
+    <tr>
+      <th>Test ID</th>
+      <th>Requirement</th>
+      <th>Stimulus / Input</th>
+      <th>Expected Output</th>
+      <th>Actual Observed Output</th>
+      <th>Result</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>FT-01</strong></td>
+      <td>FR-01</td>
+      <td>Adjust DHT22 temperature to 28.0 &deg;C</td>
+      <td>OLED temperature updates to 28.0 &deg;C</td>
+      <td>Screen rendered &ldquo;28.0 C&rdquo; within 2.0 s cycle</td>
+      <td><span class="badge-pass">PASS</span></td>
+    </tr>
+    <tr>
+      <td><strong>FT-02</strong></td>
+      <td>FR-02</td>
+      <td>Adjust DHT22 humidity to 75.0 %</td>
+      <td>OLED humidity updates to 75.0 %</td>
+      <td>Screen rendered &ldquo;75.0 %&rdquo; accurately</td>
+      <td><span class="badge-pass">PASS</span></td>
+    </tr>
+    <tr>
+      <td><strong>FT-03</strong></td>
+      <td>FR-03</td>
+      <td>Adjust LDR light slider</td>
+      <td>OLED light displays 0&ndash;100%</td>
+      <td>Linear scaling rendered (e.g. 74 %)</td>
+      <td><span class="badge-pass">PASS</span></td>
+    </tr>
+    <tr>
+      <td><strong>FT-04</strong></td>
+      <td>FR-06</td>
+      <td>Rotate encoder clockwise</td>
+      <td>Next dashboard page is selected</td>
+      <td>Pages traversed: Temp &rarr; Hum &rarr; Light &rarr; Motion</td>
+      <td><span class="badge-pass">PASS</span></td>
+    </tr>
+    <tr>
+      <td><strong>FT-05</strong></td>
+      <td>FR-06</td>
+      <td>Rotate encoder counter-clockwise</td>
+      <td>Previous page selected with wrap</td>
+      <td>Pages traversed in reverse with wraparound</td>
+      <td><span class="badge-pass">PASS</span></td>
+    </tr>
+    <tr>
+      <td><strong>FT-06</strong></td>
+      <td>FR-07</td>
+      <td>Set temperature to 32.5 &deg;C (&gt; 30 &deg;C)</td>
+      <td>Buzzer activates, OLED shows ALARM</td>
+      <td>Buzzer sounded continuously, OLED alerted</td>
+      <td><span class="badge-pass">PASS</span></td>
+    </tr>
+    <tr>
+      <td><strong>FT-07</strong></td>
+      <td>FR-07</td>
+      <td>Return temperature to 24.5 &deg;C</td>
+      <td>Buzzer silences, OLED shows NORMAL</td>
+      <td>Buzzer stopped immediately, status restored</td>
+      <td><span class="badge-pass">PASS</span></td>
+    </tr>
+    <tr>
+      <td><strong>FT-08</strong></td>
+      <td>FR-04</td>
+      <td>Trigger simulated PIR motion</td>
+      <td>EVENT_MOTION asserted, ACTIVE confirmed</td>
+      <td>Log confirmed motion; OLED showed DETECTED</td>
+      <td><span class="badge-pass">PASS</span></td>
+    </tr>
+    <tr>
+      <td><strong>FT-09</strong></td>
+      <td>FR-09</td>
+      <td>Allow 15 seconds without motion</td>
+      <td>System transitions to INACTIVE, OLED off</td>
+      <td>Screen blanked at exactly 15s mark</td>
+      <td><span class="badge-pass">PASS</span></td>
+    </tr>
+    <tr>
+      <td><strong>FT-10</strong></td>
+      <td>FR-10</td>
+      <td>Trigger PIR while in INACTIVE state</td>
+      <td>System restores to ACTIVE, OLED on</td>
+      <td>Screen turned back on instantly with telemetry</td>
+      <td><span class="badge-pass">PASS</span></td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="page-break"></div>
+
+<!-- ========================================================================= -->
+<h3>Deliberate FreeRTOS Fault Experiments</h3>
+<!-- ========================================================================= -->
+<p>
+To deeply analyze the real-time behavior and failure modes of FreeRTOS, three deliberate fault injection experiments were conducted:
+</p>
+
+<h4>Fault Experiment 1: Elimination of Blocking Delay (CPU Monopolization)</h4>
+<ul>
+  <li><strong>Procedure</strong>: Commented out <code>vTaskDelayUntil()</code> in <code>SensorTask</code> (Priority 2), creating an uncontrolled busy-loop.</li>
+  <li><strong>Observation</strong>: <code>SensorTask</code> consumed 100% of CPU time on its core. The FreeRTOS <code>IDLE</code> task was starved of execution time. Within 5.0 seconds, the hardware Task Watchdog Timer (TWDT) triggered a panic:
+  <div class="code-block">E (5020) task_wdt: Task watchdog got triggered. The following tasks did not reset the watchdog in time:
+ - IDLE (CPU 0)
+Guru Meditation Error: Core 0 panic'ed (Unhandled debug exception).</div>
+  Furthermore, <code>DisplayTask</code> (Priority 1) was completely starved and never executed.</li>
+  <li><strong>Resolution & Analysis</strong>: Every continuously executing FreeRTOS task must perform bounded work and then block, wait, or yield. Restored <code>vTaskDelayUntil()</code> to ensure the IDLE task can feed the watchdog and lower-priority tasks can execute.</li>
+</ul>
+
+<h4>Fault Experiment 2: Priority Inversion / Misassignment</h4>
+<ul>
+  <li><strong>Procedure</strong>: Reassigned <code>DisplayTask</code> to Priority 4 (above <code>InputTask</code> and <code>MotionTask</code> at Priority 3).</li>
+  <li><strong>Observation</strong>: Whenever <code>DisplayTask</code> executed its 1024-byte I2C transmission buffer update, it preempted <code>InputTask</code>. Rotating the physical rotary encoder dial rapidly during display refreshes caused missed gray-code state transitions, producing jittery, unresponsive menu navigation.</li>
+  <li><strong>Resolution & Analysis</strong>: Restored <code>DisplayTask</code> to Priority 1. High-frequency physical events requiring immediate edge handling must always have higher priority than background visual refresh operations.</li>
+</ul>
+
+<h4>Fault Experiment 3: Removal of Mutex Protection (Race Condition on UART)</h4>
+<ul>
+  <li><strong>Procedure</strong>: Removed <code>xSemaphoreTake(serialMutex, ...)`</code> and <code>xSemaphoreGive(serialMutex)</code> from <code>safe_log()</code>, allowing unsynchronized concurrent printing from multiple tasks.</li>
+  <li><strong>Observation</strong>: When <code>SensorTask</code> printed its 2-second telemetry report while <code>InputTask</code> simultaneously logged an encoder turn, stdout characters became corrupted and interleaved:
+  <div class="code-block">[SEN[INPUT] Encoder rotated CW -> Mode: HUMIDISOR] T=25.4 C | H=61.2 % | Light=74 %TY</div>
+  The garbled text invalidated serial parsing scripts.</li>
+  <li><strong>Resolution & Analysis</strong>: Restored the binary mutex in <code>safe_log()</code>, ensuring atomic ownership of the serial console across all tasks.</li>
+</ul>
+
+<!-- ========================================================================= -->
+<h2>6. Static Code Analysis</h2>
+<!-- ========================================================================= -->
+<p>
+Static code analysis was performed across the entire codebase using PlatformIO's integrated <strong>cppcheck</strong> analyzer (version 1.21100):
+</p>
+<div class="code-block">&gt; pio check --skip-packages
+Checking esp32dev &gt; cppcheck (platform: espressif32; board: esp32dev; framework: espidf)
+--------------------------------------------------------------------------------
+No defects found
+========================== [PASSED] Took 1.33 seconds ==========================</div>
+
+<table class="data-table">
+  <thead>
+    <tr>
+      <th>Finding / Rule</th>
+      <th>File & Line</th>
+      <th>Severity</th>
+      <th>Root Cause</th>
+      <th>Engineering Resolution</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>unusedFunction: app_main</code></td>
+      <td><code>src/main.cpp:18</code></td>
+      <td>Low (Style)</td>
+      <td>ESP-IDF entry point called by OS bootloader, not C++ code</td>
+      <td>Tagged with <code>extern &quot;C&quot;</code> linkage; suppressed as false positive</td>
+    </tr>
+    <tr>
+      <td><code>syntaxError: c++config.h</code></td>
+      <td>Toolchain Headers</td>
+      <td>Breaking</td>
+      <td>Cppcheck scanning internal GCC 15 toolchain headers</td>
+      <td>Configured <code>check_skip_packages = yes</code> in <code>platformio.ini</code></td>
+    </tr>
+    <tr>
+      <td><code>uninitMemberVar</code></td>
+      <td><code>src/sensors.cpp</code></td>
+      <td>Medium</td>
+      <td>Partial struct initialization</td>
+      <td>Zero-initialized all driver configuration structs using <code>{}</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ========================================================================= -->
+<h2>7. Requirements Traceability Matrix</h2>
+<!-- ========================================================================= -->
+<table class="data-table">
+  <thead>
+    <tr>
+      <th>Req ID</th>
+      <th>Requirement Description</th>
+      <th>Firmware Implementation</th>
+      <th>Verification Evidence</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>FR-01</strong></td>
+      <td>Periodic temperature measurement</td>
+      <td><code>SensorTask</code>, <code>dht22_read()</code> in <code>sensors.cpp</code></td>
+      <td>Unit Tests 1&ndash;5, Functional Test <strong>FT-01</strong></td>
+    </tr>
+    <tr>
+      <td><strong>FR-02</strong></td>
+      <td>Periodic relative humidity measurement</td>
+      <td><code>SensorTask</code>, <code>dht22_read()</code> in <code>sensors.cpp</code></td>
+      <td>Functional Test <strong>FT-02</strong></td>
+    </tr>
+    <tr>
+      <td><strong>FR-03</strong></td>
+      <td>Ambient light monitoring (0&ndash;100%)</td>
+      <td><code>ldr_read_light_level()</code>, ADC1 Oneshot Driver</td>
+      <td>Functional Test <strong>FT-03</strong></td>
+    </tr>
+    <tr>
+      <td><strong>FR-04</strong></td>
+      <td>Motion detection via PIR</td>
+      <td><code>MotionTask</code>, GPIO 13 in <code>motion.cpp</code></td>
+      <td>Functional Test <strong>FT-08</strong></td>
+    </tr>
+    <tr>
+      <td><strong>FR-05</strong></td>
+      <td>OLED display of single measurement</td>
+      <td><code>DisplayTask</code>, SSD1306 driver in <code>display.cpp</code></td>
+      <td>Functional Tests <strong>FT-01 &ndash; FT-03</strong></td>
+    </tr>
+    <tr>
+      <td><strong>FR-06</strong></td>
+      <td>Rotary encoder 4-page navigation</td>
+      <td><code>InputTask</code>, <code>next/previousDisplayMode()</code></td>
+      <td>Unit Tests 6&ndash;9, Functional Tests <strong>FT-04, FT-05</strong></td>
+    </tr>
+    <tr>
+      <td><strong>FR-07</strong></td>
+      <td>Audible temperature anomaly alarm</td>
+      <td><code>AlarmTask</code>, <code>evaluateTemperature()</code>, GPIO 15</td>
+      <td>Unit Tests 1&ndash;5, Functional Tests <strong>FT-06, FT-07</strong></td>
+    </tr>
+    <tr>
+      <td><strong>FR-08</strong></td>
+      <td>ACTIVE & INACTIVE states supported</td>
+      <td><code>evaluateSystemState()</code> in <code>system_state.cpp</code></td>
+      <td>Unit Tests 10&ndash;13, Functional Tests <strong>FT-08 &ndash; FT-10</strong></td>
+    </tr>
+    <tr>
+      <td><strong>FR-09</strong></td>
+      <td>Automatic power-save upon inactivity</td>
+      <td><code>StateTask</code>, 15s timeout, OLED blanking</td>
+      <td>Unit Test 11, Functional Test <strong>FT-09</strong></td>
+    </tr>
+    <tr>
+      <td><strong>FR-10</strong></td>
+      <td>Automatic reactivation upon motion</td>
+      <td><code>system_state_record_motion()</code>, PIR interrupt</td>
+      <td>Unit Test 13, Functional Test <strong>FT-10</strong></td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ========================================================================= -->
+<h2>8. Engineering Discussion & Conclusion</h2>
+<!-- ========================================================================= -->
+<p>
+<strong>Engineering Discussion:</strong> Building a real-time embedded system on an RTOS fundamentally alters firmware design philosophy compared to single-threaded superloops. Decoupling hardware acquisition from display rendering allowed sensor sampling to continue smoothly even when navigation was manipulated aggressively. The use of FreeRTOS queues eliminated data races that plague bare-metal code. Furthermore, separating decision logic into pure functions proved invaluable: all 13 core algorithmic behaviors were verified in milliseconds via unit testing without waiting for sensor warm-up or simulation ticks.
+</p>
+<p>
+<strong>Differences Between Simulation and Real Hardware:</strong> In physical deployments, mechanical rotary switches suffer from contact bounce requiring hardware RC low-pass filters or software debouncing algorithms; analog ADC readings on ESP32 exhibit non-linearity requiring multi-point eFuse factory calibration curves; and DHT22 digital lines require external 4.7 k&Omega; pull-up resistors to prevent floating bus conditions.
+</p>
+<p>
+<strong>Conclusion:</strong> Laboratory Activity No. 1 was completed successfully in full compliance with all technical rubrics. The firmware compiles cleanly under ESP-IDF, executes six prioritized FreeRTOS tasks, satisfies all functional requirements (FR-01 &ndash; FR-10), achieves 100% pass on 13 automated unit tests, passes static code analysis with 0 defects, and provides complete documentation for both academic assessment and public engineering portfolio showcase.
+</p>
+
+</body>
+</html>
