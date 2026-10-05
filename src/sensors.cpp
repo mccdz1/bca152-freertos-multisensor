@@ -112,11 +112,14 @@ int ldr_read_light_level(void)
     int raw_val = 0;
     if (adc_oneshot_read(adc1_handle, ADC_CHANNEL_6, &raw_val) == ESP_OK) {
         /*
-         * Raw ADC ranges 0 to 4095 (12-bit).
-         * Formula: lightLevel = (raw_val * 100) / 4095
-         * 0% represents lowest ambient brightness; 100% represents maximum brightness.
+         * In Wokwi photoresistor sensor:
+         * Higher illumination (lux) decreases LDR resistance, lowering the divider voltage.
+         * Therefore, a low raw ADC value corresponds to maximum brightness/illumination.
+         * We scale and invert so:
+         * - Maximum illumination (lux is max, raw_val ~0) -> 100%
+         * - Minimum illumination (darkness, raw_val ~4095) -> 0%
          */
-        int scaled = (raw_val * 100) / 4095;
+        int scaled = (int)(((4095 - raw_val) * 100.0f) / 3950.0f);
         if (scaled < 0) scaled = 0;
         if (scaled > 100) scaled = 100;
         return scaled;
