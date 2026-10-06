@@ -2,3 +2,5 @@
 .vscode/
 *.log
 extracted_doc.txt
+firmware.bin
+firmware.elf
