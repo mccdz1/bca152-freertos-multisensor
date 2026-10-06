@@ -29,7 +29,7 @@
       "id": "ldr",
       "top": 200,
       "left": -160,
-      "attrs": {}
+      "attrs": { "lux": "100000" }
     },
     {
       "type": "wokwi-pir-motion-sensor",
