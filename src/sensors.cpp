@@ -112,11 +112,16 @@ int ldr_read_light_level(void)
     int raw_val = 0;
     if (adc_oneshot_read(adc1_handle, ADC_CHANNEL_6, &raw_val) == ESP_OK) {
         /*
-         * Wokwi photoresistor sensor module:
-         * - Minimum illumination (0.1 lux) -> raw ADC near 0 -> 0% (Dim)
-         * - Maximum illumination (max lux) -> raw ADC near 4000-4095 -> 100% (Bright)
+         * Wokwi Photoresistor Sensor Module (AO pin):
+         * - Maximum illumination (100,000 lux): LDR resistance drops near 0 -> raw ADC ~30-100
+         * - Minimum illumination (0.1 lux): LDR resistance is ~1M -> raw ADC ~3900-4095
+         * 
+         * Calibrated linear mapping:
+         * raw_val <= 120  -> 100% (Bright)
+         * raw_val >= 3900 -> 0% (Dim)
          */
-        int scaled = (int)((raw_val * 100.0f) / 4000.0f);
+        float pct = ((3900.0f - (float)raw_val) * 100.0f) / 3780.0f;
+        int scaled = (int)(pct + 0.5f);
         if (scaled < 0) scaled = 0;
         if (scaled > 100) scaled = 100;
         return scaled;
