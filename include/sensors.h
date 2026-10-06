@@ -42,6 +42,13 @@ bool dht22_read(float *temp, float *hum);
 int ldr_read_light_level(void);
 
 /**
+ * @brief Convert raw ADC value (0-4095) to calibrated light percentage (0-100%)
+ * @param raw_val Raw ADC integer reading
+ * @return Scaled percentage (0% at minimum/darkness, 100% at maximum illumination)
+ */
+int scale_light_level(int raw_val);
+
+/**
  * @brief FreeRTOS Sensor acquisition task
  * Runs periodically every 2000 ms using vTaskDelayUntil()
  */

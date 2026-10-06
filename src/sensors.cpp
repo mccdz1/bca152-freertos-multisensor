@@ -103,6 +103,20 @@ bool dht22_read(float *temp, float *hum)
     return true;
 }
 
+int scale_light_level(int raw_val)
+{
+    /*
+     * Direct linear calibrated mapping:
+     * - Minimum illumination (0.1 lux / darkness) -> raw_val <= 185 -> 0% (Dim)
+     * - Maximum illumination (100,000 lux / bright) -> raw_val >= 3900 -> 100% (Bright)
+     */
+    float pct = ((float)(raw_val - 185) * 100.0f) / 3715.0f;
+    int scaled = (int)(pct + 0.5f);
+    if (scaled < 0) scaled = 0;
+    if (scaled > 100) scaled = 100;
+    return scaled;
+}
+
 int ldr_read_light_level(void)
 {
     if (adc1_handle == nullptr) {
@@ -111,20 +125,7 @@ int ldr_read_light_level(void)
 
     int raw_val = 0;
     if (adc_oneshot_read(adc1_handle, ADC_CHANNEL_6, &raw_val) == ESP_OK) {
-        /*
-         * Wokwi Photoresistor Sensor Module (AO pin):
-         * - Maximum illumination (100,000 lux): raw ADC reaches ~3900-4095 -> 100% (Bright)
-         * - Minimum illumination (0.1 lux): raw ADC is ~30-185 -> 0% (Dim)
-         * 
-         * Direct linear calibrated mapping:
-         * raw_val <= 185  -> 0% (Dim)
-         * raw_val >= 3900 -> 100% (Bright)
-         */
-        float pct = ((float)(raw_val - 185) * 100.0f) / 3715.0f;
-        int scaled = (int)(pct + 0.5f);
-        if (scaled < 0) scaled = 0;
-        if (scaled > 100) scaled = 100;
-        return scaled;
+        return scale_light_level(raw_val);
     }
 
     return 50;

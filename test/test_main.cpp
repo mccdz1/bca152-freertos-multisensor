@@ -1,6 +1,7 @@
 #include <unity.h>
 #include "alarm.h"
 #include "input.h"
+#include "sensors.h"
 #include "system_state.h"
 
 /* ========================================================================= */
@@ -97,7 +98,29 @@ void test_system_state_inactive_motion_detected(void)
                       evaluateSystemState(SystemState::INACTIVE, true, 25000, 15000));
 }
 
-/* Runner function executing all 13 required test cases */
+/* ========================================================================= */
+/* Category 4: Ambient Light Calibration Unit Tests (3 tests)                */
+/* ========================================================================= */
+
+void test_light_level_at_lowest_illumination(void)
+{
+    /* Lowest illumination / darkness (raw ADC near 0) -> 0% */
+    TEST_ASSERT_EQUAL(0, scale_light_level(0));
+}
+
+void test_light_level_at_highest_illumination(void)
+{
+    /* Highest illumination / direct sunlight (raw ADC 4095) -> 100% */
+    TEST_ASSERT_EQUAL(100, scale_light_level(4095));
+}
+
+void test_light_level_scales_intermediate_illumination(void)
+{
+    /* Midpoint illumination -> 50% */
+    TEST_ASSERT_EQUAL(50, scale_light_level(2048));
+}
+
+/* Runner function executing all test cases */
 extern "C" int run_all_unit_tests(void)
 {
     UNITY_BEGIN();
@@ -120,6 +143,11 @@ extern "C" int run_all_unit_tests(void)
     RUN_TEST(test_system_state_active_timeout_reached);
     RUN_TEST(test_system_state_inactive_no_motion);
     RUN_TEST(test_system_state_inactive_motion_detected);
+
+    /* Light level tests */
+    RUN_TEST(test_light_level_at_lowest_illumination);
+    RUN_TEST(test_light_level_at_highest_illumination);
+    RUN_TEST(test_light_level_scales_intermediate_illumination);
 
     return UNITY_END();
 }
