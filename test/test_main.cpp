@@ -104,20 +104,20 @@ void test_system_state_inactive_motion_detected(void)
 
 void test_light_level_at_lowest_illumination(void)
 {
-    /* Lowest illumination / darkness (raw ADC near 0) -> 0% */
-    TEST_ASSERT_EQUAL(0, scale_light_level(0));
+    /* Lowest illumination / darkness (0.1 lux -> raw ADC 4095) -> 0% */
+    TEST_ASSERT_EQUAL(0, scale_light_level(4095));
 }
 
 void test_light_level_at_highest_illumination(void)
 {
-    /* Highest illumination / direct sunlight (raw ADC 4095) -> 100% */
-    TEST_ASSERT_EQUAL(100, scale_light_level(4095));
+    /* Highest illumination / direct sunlight (100,000 lux -> raw ADC ~32) -> 100% */
+    TEST_ASSERT_EQUAL(100, scale_light_level(32));
 }
 
 void test_light_level_scales_intermediate_illumination(void)
 {
-    /* Midpoint illumination -> 50% */
-    TEST_ASSERT_EQUAL(50, scale_light_level(2048));
+    /* Midpoint illumination (raw ADC 2010) -> 50% */
+    TEST_ASSERT_EQUAL(50, scale_light_level(2010));
 }
 
 /* Runner function executing all test cases */

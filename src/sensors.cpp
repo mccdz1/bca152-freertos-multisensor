@@ -106,11 +106,11 @@ bool dht22_read(float *temp, float *hum)
 int scale_light_level(int raw_val)
 {
     /*
-     * Direct linear calibrated mapping:
-     * - Minimum illumination (0.1 lux / darkness) -> raw_val <= 185 -> 0% (Dim)
-     * - Maximum illumination (100,000 lux / bright) -> raw_val >= 3900 -> 100% (Bright)
+     * Wokwi Photoresistor Sensor Module (AO pin):
+     * - Maximum illumination (100,000 lux): AO voltage drops to ~0.04V -> raw ADC ~32 -> 100% (Bright)
+     * - Minimum illumination (0.1 lux): AO voltage rises to ~3.3V -> raw ADC ~4060 -> 0% (Dim)
      */
-    float pct = ((float)(raw_val - 185) * 100.0f) / 3715.0f;
+    float pct = ((3900.0f - (float)raw_val) * 100.0f) / 3780.0f;
     int scaled = (int)(pct + 0.5f);
     if (scaled < 0) scaled = 0;
     if (scaled > 100) scaled = 100;
